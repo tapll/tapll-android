@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
-    `maven-publish`
+    alias(libs.plugins.maven.publish)
 }
 
 val sdkVersion = providers.gradleProperty("VERSION_NAME").get()
@@ -44,10 +44,6 @@ android {
         warningsAsErrors = false
         checkReleaseBuilds = true
     }
-
-    publishing {
-        singleVariant("release") { withSourcesJar() }
-    }
 }
 
 dependencies {
@@ -61,20 +57,12 @@ dependencies {
     testImplementation(libs.json.schema.validator)
 }
 
-afterEvaluate {
-    publishing {
-        publications {
-            create<MavenPublication>("release") {
-                from(components["release"])
-                groupId = "dev.useunion"
-                artifactId = "union"
-                version = sdkVersion
-                pom {
-                    name.set("Union Android SDK")
-                    description.set("Product analytics and crash reporting for Android apps, for the Union platform.")
-                    url.set("https://useunion.dev")
-                }
-            }
-        }
-    }
+// Maven Central through the Central Portal: signed, with sources and an (empty) javadoc jar, which
+// is what the portal validates. Credentials and the signing key come from ~/.gradle/gradle.properties
+// or ORG_GRADLE_PROJECT_* in CI — never from this repository.
+mavenPublishing {
+    publishToMavenCentral(automaticRelease = true)
+    // Signed whenever a key is configured, which a Central upload needs; a local publish without one
+    // (the wrappers' example apps use mavenLocal) stays unsigned instead of failing.
+    if (providers.gradleProperty("signingInMemoryKey").isPresent) signAllPublications()
 }

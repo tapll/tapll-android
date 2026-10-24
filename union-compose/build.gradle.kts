@@ -2,7 +2,7 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    `maven-publish`
+    alias(libs.plugins.maven.publish)
 }
 
 val sdkVersion = providers.gradleProperty("VERSION_NAME").get()
@@ -27,8 +27,6 @@ android {
     }
 
     testOptions { unitTests { isIncludeAndroidResources = true } }
-
-    publishing { singleVariant("release") { withSourcesJar() } }
 }
 
 // The Compose test activity (`ui-test-manifest`) is a debug-only dependency, so the release unit-test
@@ -49,20 +47,12 @@ dependencies {
     debugImplementation(libs.compose.ui.test.manifest)
 }
 
-afterEvaluate {
-    publishing {
-        publications {
-            create<MavenPublication>("release") {
-                from(components["release"])
-                groupId = "dev.useunion"
-                artifactId = "union-compose"
-                version = sdkVersion
-                pom {
-                    name.set("Union Compose")
-                    description.set("Jetpack Compose screen tracking for the Union Android SDK.")
-                    url.set("https://useunion.dev")
-                }
-            }
-        }
-    }
+// Maven Central through the Central Portal: signed, with sources and an (empty) javadoc jar, which
+// is what the portal validates. Credentials and the signing key come from ~/.gradle/gradle.properties
+// or ORG_GRADLE_PROJECT_* in CI — never from this repository.
+mavenPublishing {
+    publishToMavenCentral(automaticRelease = true)
+    // Signed whenever a key is configured, which a Central upload needs; a local publish without one
+    // (the wrappers' example apps use mavenLocal) stays unsigned instead of failing.
+    if (providers.gradleProperty("signingInMemoryKey").isPresent) signAllPublications()
 }

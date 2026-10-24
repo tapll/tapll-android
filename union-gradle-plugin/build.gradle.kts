@@ -2,6 +2,7 @@ plugins {
     `java-gradle-plugin`
     alias(libs.plugins.kotlin.jvm)
     `maven-publish`
+    id("com.gradle.plugin-publish") version "1.3.1"
 }
 
 group = "dev.useunion"
@@ -17,12 +18,17 @@ dependencies {
 }
 
 gradlePlugin {
+    // Gradle Plugin Portal (`./gradlew -p union-gradle-plugin publishPlugins`); keys in
+    // gradle.publish.key / gradle.publish.secret, never in this repository.
+    website = "https://useunion.dev/docs/mappings"
+    vcsUrl = "https://github.com/useunion/union-android"
     plugins {
         create("union") {
             id = "dev.useunion.union"
             implementationClass = "dev.useunion.gradle.UnionPlugin"
             displayName = "Union"
             description = "Generates a build id and uploads the R8 mapping to Union."
+            tags = listOf("android", "r8", "proguard", "crash-reporting", "analytics")
         }
     }
 }
