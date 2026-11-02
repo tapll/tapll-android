@@ -240,7 +240,7 @@ Answers for the SDK's own collection. Your app's other SDKs and your own feature
 
 ## Using Tapll from Flutter or React Native
 
-Cross-platform apps should use the Tapll wrappers (`tapll_analytics` for Flutter, `@tapll/react-native` for React Native) rather than calling this SDK from Dart or JavaScript. The wrappers sit on top of this SDK and forward to it, so sessions, queueing, retries, privacy modes and crash files stay the native SDK's, and reports from a wrapped app carry the wrapper's name and version. You still add this SDK to the Android side through the wrapper's own setup instructions. The two calls wrappers use (`Tapll.Wrapper.setWrapper` and `Tapll.Wrapper.recordManagedError`) are hidden from app code (`@RestrictTo(LIBRARY_GROUP)`) and carry no stability promise beyond `SDK-PLATFORMS.md`.
+Cross-platform apps should use the Tapll wrappers (`tapll` for Flutter, `@tapll/react-native` for React Native) rather than calling this SDK from Dart or JavaScript. The wrappers sit on top of this SDK and forward to it, so sessions, queueing, retries, privacy modes and crash files stay the native SDK's, and reports from a wrapped app carry the wrapper's name and version. You still add this SDK to the Android side through the wrapper's own setup instructions. The two calls wrappers use (`Tapll.Wrapper.setWrapper` and `Tapll.Wrapper.recordManagedError`) are hidden from app code (`@RestrictTo(LIBRARY_GROUP)`) and carry no stability promise beyond `SDK-PLATFORMS.md`.
 
 ## Development
 
