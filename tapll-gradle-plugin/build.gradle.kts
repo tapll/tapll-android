@@ -20,7 +20,7 @@ dependencies {
 gradlePlugin {
     // Gradle Plugin Portal (`./gradlew -p tapll-gradle-plugin publishPlugins`); keys in
     // gradle.publish.key / gradle.publish.secret, never in this repository.
-    website = "https://tapll.com/docs/mappings"
+    website = "https://github.com/tapll/tapll-android"
     vcsUrl = "https://github.com/tapll/tapll-android"
     plugins {
         create("tapll") {
