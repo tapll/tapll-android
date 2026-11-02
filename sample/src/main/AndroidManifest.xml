@@ -3,7 +3,7 @@
     <application
         android:name=".SampleApp"
         android:allowBackup="false"
-        android:label="Union sample">
+        android:label="Tapll sample">
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -15,7 +15,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="unionsample" />
+                <data android:scheme="tapllsample" />
             </intent-filter>
         </activity>
     </application>

@@ -8,7 +8,7 @@ plugins {
     alias(libs.plugins.kotlin.compose) apply false
 }
 
-val pluginBuild = gradle.includedBuild("union-gradle-plugin")
+val pluginBuild = gradle.includedBuild("tapll-gradle-plugin")
 
 // `./gradlew build` covers every module, the included Gradle plugin and the sample.
 tasks.named("build") {
@@ -19,5 +19,5 @@ tasks.named("build") {
 tasks.register("test") {
     group = "verification"
     description = "Runs the unit tests of every module, including the Gradle plugin."
-    dependsOn(":union:testDebugUnitTest", ":union-compose:testDebugUnitTest", pluginBuild.task(":test"))
+    dependsOn(":tapll:testDebugUnitTest", ":tapll-compose:testDebugUnitTest", pluginBuild.task(":test"))
 }

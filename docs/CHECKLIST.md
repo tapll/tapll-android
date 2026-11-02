@@ -1,10 +1,10 @@
-# union-android — checklista implementacji
+# tapll-android — checklista implementacji
 
-Kopia `union-ios/docs/CHECKLIST.md` (0.4.0) dla Androida: **każda różnica względem iOS jest oznaczona `[ANDROID]`**, a reszta wiersza znaczy to samo, co na iOS. Umowa między SDK: `docs/Engineering/SDK-PLATFORMS.md` w repo `Union`.
+Kopia `tapll-ios/docs/CHECKLIST.md` (0.4.0) dla Androida: **każda różnica względem iOS jest oznaczona `[ANDROID]`**, a reszta wiersza znaczy to samo, co na iOS. Umowa między SDK: `docs/Engineering/SDK-PLATFORMS.md` w repo `Tapll`.
 
 Jedno miejsce, w którym jest napisane **co SDK loguje, kiedy i w jakim kształcie**. Zanim dodasz event, integrację albo pole kontekstu: znajdź je tutaj. Jeśli nie ma — najpierw dopisz wiersz, potem implementuj.
 
-Źródło prawdy dla kształtu paczki: `packages/contract/src/event-batch.ts` w repo `Union` (JSON Schema: `pnpm --filter @union/contract schema:json`, kopia w `union/src/test/resources/event-batch.v1.json`). Ten plik nie definiuje kontraktu — opisuje, co z niego mamy wyemitować.
+Źródło prawdy dla kształtu paczki: `packages/contract/src/event-batch.ts` w repo `Tapll` (JSON Schema: `pnpm --filter @tapll/contract schema:json`, kopia w `tapll/src/test/resources/event-batch.v1.json`). Ten plik nie definiuje kontraktu — opisuje, co z niego mamy wyemitować.
 
 Stan: `[x]` zaimplementowane i pokryte testem, `[~]` zaimplementowane bez testu, `[ ]` do zrobienia.
 
@@ -16,16 +16,16 @@ Wszystko poniżej jest też zaznaczone `[ANDROID]` w wierszu, którego dotyczy.
 |---|---|---|
 | Reinstalacja | id w Keychain przeżywa deinstalację, `$app_install { reinstall: true }` | nic nie przeżywa deinstalacji: **`reinstall` nigdy nie jest wysyłane**, reinstalacja = nowa instalacja i nowy `install_id`. Stan SDK leży w `noBackupFilesDir`, nie w SharedPreferences, bo te jadą w Auto Backup na nowy telefon |
 | Środowisko | DEBUG → `development`, sandbox receipt / StoreKit → `testflight` | `FLAG_DEBUGGABLE` aplikacji → `development`, inaczej `production`. Play nie mówi aplikacji, na jakim torze jest (internal / closed testing), więc `testflight` tylko z `Options.environment` |
-| Ekrany | `.trackScreen` / swizzling `viewDidAppear` | Compose `TrackScreen("Name")` (moduł `union-compose`), `ActivityLifecycleCallbacks` (prosta nazwa klasy aktywności, `onResume`, rotacja nie liczy się) gdy `Options.automaticScreenTracking`, `Union.screen` |
+| Ekrany | `.trackScreen` / swizzling `viewDidAppear` | Compose `TrackScreen("Name")` (moduł `tapll-compose`), `ActivityLifecycleCallbacks` (prosta nazwa klasy aktywności, `onResume`, rotacja nie liczy się) gdy `Options.automaticScreenTracking`, `Tapll.screen` |
 | Deep linki | `handleDeepLink(URL)` | `handleDeepLink(Uri)` i `handleDeepLink(Intent)` (`Intent.data`); query i fragment nigdy nie wyjeżdżają |
 | Powrót z tła | `UIApplication` notifications | `ProcessLifecycleOwner` (`ON_START` / `ON_STOP`, ten ostatni ~700 ms po ostatniej aktywności). **Brak `willTerminate`**: zabicie procesu nie daje `$session_end`, o końcu sesji rozstrzyga timeout serwera |
 | Hangi / ANR | `hang` (watchdog na wątku, stos main threada przez Mach) | `hang` z watchdoga na `Looper` głównego wątku (≥ 2 s, raport po zakończeniu epizodu ze zmierzonym czasem) **i** `anr` z `ApplicationExitInfo.REASON_ANR` (API 30+) przy następnym starcie |
 | Crashe | handler sygnałów w C + Mach + `NSException`, rekord binarny + sidecar | `Thread.setDefaultUncaughtExceptionHandler` łańcuchowo do poprzedniego; **cały raport** (JSON) zapisywany synchronicznie w handlerze; ramki zarządzane (JVM), bez obrazów binarnych |
-| Symbole | dSYM (`atos`) | `mapping.txt` z R8 wysyłany przez wtyczkę Gradle, klucz łączący to `build_id` z `assets/union-build-id.txt` |
+| Symbole | dSYM (`atos`) | `mapping.txt` z R8 wysyłany przez wtyczkę Gradle, klucz łączący to `build_id` z `assets/tapll-build-id.txt` |
 | Nie-fatale | zapis na dysk, wysyłka przy następnym starcie | zapis na dysk **i od razu próba wysyłki w procesie** |
 | Opt-out a crashe | `optOut()` zatrzymuje handler do końca procesu; po restarcie handler wraca | zapisany opt-out obowiązuje też crash reporting po restarcie; `optIn()` uzbraja handler z powrotem |
 | Backoff | pierwsze opóźnienie ≈ 4 s × jitter (próba liczona przed obliczeniem) | pierwsze opóźnienie 2 s × jitter 0,5–1,0, potem 4, 8 ... do 5 min (tak, jak mówi `SDK-PLATFORMS.md`) |
-| Powiązanie zakupów | `Product.PurchaseOption.appAccountToken = Union.installUUID` | Play Billing `setObfuscatedAccountId(Union.installId)`; nie ma `installUUID` |
+| Powiązanie zakupów | `Product.PurchaseOption.appAccountToken = Tapll.installUUID` | Play Billing `setObfuscatedAccountId(Tapll.installId)`; nie ma `installUUID` |
 | `Options.analyticsCollectionEnabled` | deprecated od 0.3.3 | **nie przeniesione** (zbieranie startuje zawsze w `configure`; odmowa to `optOut()` / `setAnalyticsCollectionEnabled(false)`) |
 | `flush()` | `async` | `suspend fun flush()`, `flush(Runnable)` i `flushBlocking(timeoutMs)` |
 | Pusta nazwa ekranu | wysyłana | **[ANDROID]** odrzucana (kontrakt wymaga niepustego `screen` dla zadeklarowanego `$screen_view`) |
@@ -37,15 +37,15 @@ Nazwa musi pochodzić z `AutoEventName`. Klient nigdy nie może wysłać `$…` 
 
 | Event | Kiedy | Właściwości | Stan |
 |---|---|---|---|
-| `$first_open` | pierwsze uruchomienie na urządzeniu (brak zapisanego `version`/`build`). **[ANDROID]** stan leży w `noBackupFilesDir/Union/<hash>/state.json`, więc znika z deinstalacją | — | [x] |
+| `$first_open` | pierwsze uruchomienie na urządzeniu (brak zapisanego `version`/`build`). **[ANDROID]** stan leży w `noBackupFilesDir/Tapll/<hash>/state.json`, więc znika z deinstalacją | — | [x] |
 | `$app_install` | razem z `$first_open` | **[ANDROID]** brak właściwości: `reinstall` nigdy nie jest wysyłane (nic nie przeżywa deinstalacji) | [x] |
 | `$app_update` | zmiana `app_version`/`app_build` względem zapisanych | `previous_version`, `previous_build` | [x] |
 | `$session_start` | start nowej sesji (zimny start, rotacja po 30 min bezczynności, powrót z tła po timeout) | — | [x] |
 | `$session_end` | zamknięcie poprzedniej sesji; `timestamp` = `lastActivityAt`, nie „teraz” | — | [x] |
 | `$foreground` | powrót do aktywności w tej samej sesji. **[ANDROID]** `ProcessLifecycleOwner` `ON_START`; powtórka `ON_START` przy `configure` wywołanym, gdy proces już jest wystartowany, jest ignorowana (na iOS `willEnterForeground` nie odpala przy zimnym starcie) | — | [x] |
 | `$background` | wejście w tło (poprzedzone flushem). **[ANDROID]** `ON_STOP` | — | [x] |
-| `$screen_view` | `Union.screen(name)` / **[ANDROID]** Compose `TrackScreen` / `ActivityLifecycleCallbacks.onResume` (prosta nazwa klasy, ≤ 128; klasy anonimowe pomijane; odtworzenie tej samej klasy po zmianie konfiguracji nie liczy się) | `screen` = nazwa; opcjonalne właściwości wywołania | [x] |
-| `$deep_link` | `Union.handleDeepLink(uri)` / **[ANDROID]** `handleDeepLink(intent)` (`Intent.data`; intent bez danych ignorowany) | `url_scheme`, `host`, `path` — **nigdy** query ani fragment (PII); URI nieprzezroczysty (`mailto:`) daje `path: ""` | [x] |
+| `$screen_view` | `Tapll.screen(name)` / **[ANDROID]** Compose `TrackScreen` / `ActivityLifecycleCallbacks.onResume` (prosta nazwa klasy, ≤ 128; klasy anonimowe pomijane; odtworzenie tej samej klasy po zmianie konfiguracji nie liczy się) | `screen` = nazwa; opcjonalne właściwości wywołania | [x] |
+| `$deep_link` | `Tapll.handleDeepLink(uri)` / **[ANDROID]** `handleDeepLink(intent)` (`Intent.data`; intent bez danych ignorowany) | `url_scheme`, `host`, `path` — **nigdy** query ani fragment (PII); URI nieprzezroczysty (`mailto:`) daje `path: ""` | [x] |
 
 Reguły, których nie łamiemy:
 - Kolejność w paczce jest chronologiczna, z jednym udokumentowanym wyjątkiem: `$session_end` starej sesji zawsze
@@ -55,12 +55,12 @@ Reguły, których nie łamiemy:
 - Każdy event ma `session_id` żywej sesji; eventy domykające dostają `session_id` sesji, którą domykają.
 - `event_id` i `session_id` to UUIDv7 z SDK; retry zachowuje `event_id` (serwer deduplikuje).
 - Timeout sesji (30 min) liczy SDK **i** serwer — obie strony muszą dawać ten sam wynik. **[ANDROID]** nie ma odpowiednika `willTerminate`: proces zabity w tle nie wysyła `$session_end`, serwer zamyka sesję po timeoucie.
-- `$…` nie ma wariantu „custom” — nowy event automatyczny wymaga wpisu w `AutoEventName` w repo `Union` **przed** implementacją tutaj.
+- `$…` nie ma wariantu „custom” — nowy event automatyczny wymaga wpisu w `AutoEventName` w repo `Tapll` **przed** implementacją tutaj.
 
 ## 1a. Eventy klienta, których nazwę czyta serwer
 
 Trzecia kategoria, obok `$auto` i dowolnych eventów aplikacji: nazwa jest **dowolna z punktu widzenia
-kontraktu** (pasuje do `^[a-z][a-z0-9_]*$`), ale rollup w repo `Union` szuka jej dosłownie. Literówka
+kontraktu** (pasuje do `^[a-z][a-z0-9_]*$`), ale rollup w repo `Tapll` szuka jej dosłownie. Literówka
 albo własny synonim nie jest błędem walidacji — event przechodzi, a metryka po drugiej stronie po
 prostu nigdy nie rośnie. Cicha awaria, więc nazwy są tutaj, nie w cudzej głowie.
 
@@ -69,27 +69,27 @@ prostu nigdy nie rośnie. Cicha awaria, więc nazwy są tutaj, nie w cudzej gło
 | `survey_displayed` | aplikacja, z callbacku `surveyDisplayed` Survicate | `survey_id` (string) | mianownik response rate w widoku NPS; panel mówi wtedy „unknown", nigdy nie zgaduje | [ ] |
 | `survey_closed` | aplikacja, z callbacku `surveyClosed` Survicate | `survey_id` (string) | rozróżnienie „zamknął bez odpowiedzi" od „nie zobaczył" | [ ] |
 
-Dlaczego to nie są eventy `$auto`: emituje je aplikacja z callbacku **cudzego** SDK, nie Union SDK
-z własnego cyklu życia. Union nie linkuje Survicate i nie ma z czego swizzlować.
+Dlaczego to nie są eventy `$auto`: emituje je aplikacja z callbacku **cudzego** SDK, nie Tapll SDK
+z własnego cyklu życia. Tapll nie linkuje Survicate i nie ma z czego swizzlować.
 
-- [ ] rozważyć `Union.trackSurveyDisplayed(surveyId:)` / `…Closed` — cienkie wrappery na `track`,
+- [ ] rozważyć `Tapll.trackSurveyDisplayed(surveyId:)` / `…Closed` — cienkie wrappery na `track`,
       których jedyna wartość to zabetonowanie nazwy i klucza właściwości w kompilatorze zamiast
       w tym akapicie. Do zrobienia, gdy pojawi się druga aplikacja emitująca te eventy ręcznie.
 
 ## 1b. Deklaracja feature'a i roli
 
 Trzecia rzecz, jaką event może nieść obok nazwy i właściwości: **do którego feature'a należy i w jakiej
-roli**. To nie podpowiedź dla panelu — to definicja. Serwer (repo `Union`, `syncDeclaredFeatures`) tworzy
+roli**. To nie podpowiedź dla panelu — to definicja. Serwer (repo `Tapll`, `syncDeclaredFeatures`) tworzy
 z niej feature albo dorzuca brakujące role do istniejącego, bez skrzynki sugestii. Dlatego pomyłka tutaj
 nie jest błędem walidacji, tylko drugim feature'em w panelu.
 
 | Element | Co robi SDK | Stan |
 |---|---|---|
-| `feature` na eventcie | opcjonalny klucz (`^[a-z][a-z0-9_]*$`, ≤ 64 — ten sam alfabet co nazwa eventu, `Limits.featureKeyPattern`), przez `Union.track(name, feature = key, role = role)` | [x] |
+| `feature` na eventcie | opcjonalny klucz (`^[a-z][a-z0-9_]*$`, ≤ 64 — ten sam alfabet co nazwa eventu, `Limits.featureKeyPattern`), przez `Tapll.track(name, feature = key, role = role)` | [x] |
 | `role` na eventcie | jak dotąd (`discovery/start/use/success/failure`); bez `feature` tylko wypełnia edytor w panelu | [x] |
-| `feature` na `$screen_view` | `Union.screen(name, feature = key)` / `TrackScreen(name, feature = key)` — jedyny event `$…`, który może nieść klucz; SDK dopisuje `role: .discovery`, bo widok ekranu jest pierwszym krokiem leja. Inne `$…` z kluczem serwer odrzuca | [x] |
-| Uchwyt `Union.feature(key)` | `Feature` — klucz pisany raz, rola wynika z metody (`.screen/.discovery/.start/.use/.success/.failure`). Cienka nakładka na `track`/`screen`; klucz walidowany przy tworzeniu, żeby zły był zalogowany raz, nie per event | [x] |
-| `screen` na dowolnym eventcie | `Union.track(name, screen = ...)` — opcjonalna nazwa ekranu (≤ 128) obok nazwy eventu; nie emituje `$screen_view` i nie liczy się do `screen_count`, tylko mówi **gdzie** event się stał | [x] |
+| `feature` na `$screen_view` | `Tapll.screen(name, feature = key)` / `TrackScreen(name, feature = key)` — jedyny event `$…`, który może nieść klucz; SDK dopisuje `role: .discovery`, bo widok ekranu jest pierwszym krokiem leja. Inne `$…` z kluczem serwer odrzuca | [x] |
+| Uchwyt `Tapll.feature(key)` | `Feature` — klucz pisany raz, rola wynika z metody (`.screen/.discovery/.start/.use/.success/.failure`). Cienka nakładka na `track`/`screen`; klucz walidowany przy tworzeniu, żeby zły był zalogowany raz, nie per event | [x] |
+| `screen` na dowolnym eventcie | `Tapll.track(name, screen = ...)` — opcjonalna nazwa ekranu (≤ 128) obok nazwy eventu; nie emituje `$screen_view` i nie liczy się do `screen_count`, tylko mówi **gdzie** event się stał | [x] |
 | Zły klucz | **porzuca cały event**, nigdy nie wysyła go bez `feature` — event obdarty z feature'a, dla którego został napisany, czyta się po drugiej stronie jako „nie należy do żadnego" | [x] |
 
 Reguły, których nie łamiemy:
@@ -148,7 +148,7 @@ Reguły, których nie łamiemy:
 ## 3. Prywatność
 
 - [x] `strict_anonymous` → `identity` puste; `identify()` logowane jako zignorowane, nie wysyłane
-- [x] `product_analytics` → `install_id` (to urządzenie) + opcjonalny `user_id`. **[ANDROID]** tożsamość leży w `noBackupFilesDir/Union/<hash>/identity.json` (poza Auto Backup, nie przeżywa deinstalacji)
+- [x] `product_analytics` → `install_id` (to urządzenie) + opcjonalny `user_id`. **[ANDROID]** tożsamość leży w `noBackupFilesDir/Tapll/<hash>/identity.json` (poza Auto Backup, nie przeżywa deinstalacji)
 - [x] traits (`identify(userId:traits:)`): ≤ 8 kluczy, wartości ≤ 256 znaków, scalane po kluczu, trzymane
   obok id (**[ANDROID]** plik tożsamości), kasowane przez `reset()` i `optOut()`. Zapisujemy je tak, jak przyszły — decyzję
   „to jest PII i deklarujemy je w App Privacy" podejmuje aplikacja, nie SDK. Serwer scala tak samo
@@ -161,29 +161,30 @@ Reguły, których nie łamiemy:
   Zabetonowane `testStartingPausedKeepsTheStoredInstallIdWhenConsentIsRestored` (0.3.3)
 - [x] **[ANDROID]** zamiast `PrivacyInfo.xcprivacy`: odpowiedzi do formularza Google Play Data safety w `README.md` (Device or other IDs, App activity, App info and performance — crash logs i diagnostics); biblioteka dodaje tylko `INTERNET`
 - [ ] `requestDataDeletion()` to dziś alias `optOut()` — zamienić na realne żądanie, gdy API je wystawi
-- [x] `Union.installId` wystawia install id do odczytu (`null` przed `configure` i w `StrictAnonymous`; **[ANDROID]** nie przeżywa reinstalacji),
+- [x] `Tapll.installId` wystawia install id do odczytu (`null` przed `configure` i w `StrictAnonymous`; **[ANDROID]** nie przeżywa reinstalacji),
   żeby aplikacja mogła podać go Survicate jako trait — styk z sekcji 5 jest wykonalny po stronie SDK;
   to aplikacja musi go wywołać.
-- Odpowiedzi z ankiet: do Union jedzie **wyłącznie** fakt zdarzenia i `survey_id`. Nigdy treść
-  odpowiedzi, komentarz, score ani kategoria — score i kategorię Union bierze z webhooka Survicate,
-  a treści nie bierze wcale. `Union.track("survey_answered", mapOf("comment" to …))` byłoby złamaniem tej
+- Odpowiedzi z ankiet: do Tapll jedzie **wyłącznie** fakt zdarzenia i `survey_id`. Nigdy treść
+  odpowiedzi, komentarz, score ani kategoria — score i kategorię Tapll bierze z webhooka Survicate,
+  a treści nie bierze wcale. `Tapll.track("survey_answered", mapOf("comment" to …))` byłoby złamaniem tej
   zasady po stronie aplikacji: SDK tego nie zablokuje, więc pilnuje tego ten wiersz i review.
 - Nie logujemy sami z siebie: query stringów, treści wpisywanych przez użytkownika, tokenów, współrzędnych,
-  ID reklamowych. E-mail czy nazwisko trafiają do Union **wyłącznie** wtedy, gdy aplikacja jawnie poda je
+  ID reklamowych. E-mail czy nazwisko trafiają do Tapll **wyłącznie** wtedy, gdy aplikacja jawnie poda je
   jako trait w `identify` — nigdy z autocapture.
 
 ## 4. Dostarczanie
 
-- [x] host: `https://in.useunion.dev/v1/batch` — ten sam, co `custom_domain` w `apps/ingest/wrangler.jsonc` w repo
-  `Union`. Ten adres jedzie w każdej wydanej binarce: zmiana odcina od ingestu wszystkie apki już w App Store,
+- [x] host: `https://in.tapll.com/v1/batch` — ten sam, co `custom_domain` w `apps/ingest/wrangler.jsonc` w repo
+  `Tapll`. Ten adres jedzie w każdej wydanej binarce: zmiana odcina od ingestu wszystkie apki już w App Store,
   a SDK nie krzyczy głośniej niż `warning`, więc awaria jest cicha. Zmieniasz host tylko razem z ingestem.
-- [x] nagłówek klucza to `x-union-key` (nie `Authorization: Bearer`); **[ANDROID]** `User-Agent: union-android/<ver>` (+ ` <wrapper>/<ver>`); transport to `HttpURLConnection` (bez OkHttp), eventy jadą jako zwykły JSON, crashe jako gzip
-- [x] kolejka NDJSON, stabilna ścieżka między launchami. **[ANDROID]** `noBackupFilesDir/Union/<hash klucza>/queue.ndjson` (hash FNV-1a base 36, jak na iOS) — wykluczona z Auto Backup z definicji katalogu
+- [x] nagłówek klucza to `x-tapll-key` (nie `Authorization: Bearer`); **[ANDROID]** `User-Agent: tapll-android/<ver>` (+ ` <wrapper>/<ver>`); transport to `HttpURLConnection` (bez OkHttp), eventy jadą jako zwykły JSON, crashe jako gzip
+- [x] kolejka NDJSON, stabilna ścieżka między launchami. **[ANDROID]** `noBackupFilesDir/Tapll/<hash klucza>/queue.ndjson` (hash FNV-1a base 36, jak na iOS) — wykluczona z Auto Backup z definicji katalogu
+- [x] **[ANDROID]** migracja z 0.1.x (SDK jako Union): przy pierwszym `configure` `internal/LegacyMigration` przenosi `noBackupFilesDir/Union/<hash>/…` do `Tapll/<hash>/…` plik po pliku (tylko stary → przeniesiony; oba → nowy wygrywa, stary usunięty), po czym kasuje stare drzewo; install id, kolejka i raporty crashy z poprzedniego uruchomienia przeżywają. Wtyczka sprzed 0.2.0 zostawia `assets/union-build-id.txt` — SDK czyta go, gdy nie ma `tapll-build-id.txt`
 - [x] paczki ≤ 100 eventów / ≤ 256 KB
 - [x] flush: co 10 s, przy 20 eventach, na wejściu w tło (**[ANDROID]** `ON_STOP`), na `flush()` (**[ANDROID]** `suspend fun flush()`, `flush(Runnable)`, `flushBlocking(timeoutMs)`; `flush()` po `track()` widzi ten event: kolejka wywołań jest uporządkowana barierą)
 - [x] `flush()` wywołane w trakcie innego flusha **czeka na niego i dosyła resztę**, nigdy nie wraca z
   własnymi eventami w kolejce. Wcześniej `guard !flushing` zwracał od razu, a przez reentrancję aktora
-  (drain zawieszony w `transport.send`) `await Union.flush()` wracał, zanim eventy sprzed wywołania
+  (drain zawieszony w `transport.send`) `await Tapll.flush()` wracał, zanim eventy sprzed wywołania
   wyszły. Zabetonowane `flushDuringAnInFlightFlushWaitsAndSendsEverything` (**[ANDROID]** w `PipelineTests`; iOS 0.3.2: `testFlushDuringAnInFlightFlushWaitsAndSendsEverything`)
 - [x] anulowanie timera flusha **nie odpala** flusha: `try? await Task.sleep` połykał `CancellationError`
   i spadał do `flush()`, więc każde `timer.cancel()` (wyłączenie zbierania, tło, drugie `configure`)
@@ -199,19 +200,19 @@ Reguły, których nie łamiemy:
   `privacy_violation` (`packages/contract/src/errors.ts`). Pod jednym `403` stoją dwie różne prawdy —
   wyłączony projekt i throttle — i tylko jedna z nich ma sens do ponowienia.
 - [ ] niezgodność środowiska klucza wraca jako `invalid_batch` bez `details` — rozpoznajemy po `message`; usunąć, gdy ingest doda `path: "environment"`
-- [ ] **[ANDROID]** emulator widzi hosta pod `10.0.2.2`, nie `localhost`: `Options.endpoint = "http://10.0.2.2:8789/v1/dev/ingest"`. Reszta jak iOS: lokalny ingest **nie ma portu** pod `wrangler dev` z wieloma configami: repo `Union` wystawia proxy
+- [ ] **[ANDROID]** emulator widzi hosta pod `10.0.2.2`, nie `localhost`: `Options.endpoint = "http://10.0.2.2:8789/v1/dev/ingest"`. Reszta jak iOS: lokalny ingest **nie ma portu** pod `wrangler dev` z wieloma configami: repo `Tapll` wystawia proxy
   (`DEV_INGEST_PROXY=1`, `POST http://localhost:8789/v1/dev/ingest`). Dopisać jako udokumentowane
-  `Options.endpoint` do testów na urządzeniu, żeby ścieżka „SDK przeciwko lokalnemu Unionowi" nie była folklorem.
+  `Options.endpoint` do testów na urządzeniu, żeby ścieżka „SDK przeciwko lokalnemu Tapllowi" nie była folklorem.
 - SDK nigdy nie rzuca i nie ubija hosta: nieprawidłowy event jest logowany i porzucany. **[ANDROID]** dotyczy też `configure` (wyjątek w środku = log i SDK nieskonfigurowane) oraz każdej pracy na wątku pipeline'u.
 - `POST /v1/server` (klucze `sk_…`) **nie jest ścieżką SDK** i nie wolno jej tu dodać: to wejście dla backendu
-  klienta, z własnym kontraktem, innym zaufaniem i bez `SessionDO`. Jedyny styk to `Union.installId` podany
+  klienta, z własnym kontraktem, innym zaufaniem i bez `SessionDO`. Jedyny styk to `Tapll.installId` podany
   aplikacji do przekazania na własny serwer.
 
 ## 4a. Crashe, hangi i non-fatale
 
-Kontrakt: `packages/contract/src/crash-batch.ts` w repo `Union` (kopia schematu w
-`union/src/test/resources/crash-batch.v2.json`, walidowana testem na każdej kodowanej paczce i na każdym raporcie z dysku; kopia `event-batch.v1.json` obok niej niesie `device.sdk_wrapper`). Umowa między czterema repozytoriami (iOS, Android, Flutter, React Native): `docs/Engineering/SDK-PLATFORMS.md` w repo `Union`.
-Decyzja i granice: `docs/Engineering/ADR/0004-own-crash-reporting.md` w repo `Union`.
+Kontrakt: `packages/contract/src/crash-batch.ts` w repo `Tapll` (kopia schematu w
+`tapll/src/test/resources/crash-batch.v2.json`, walidowana testem na każdej kodowanej paczce i na każdym raporcie z dysku; kopia `event-batch.v1.json` obok niej niesie `device.sdk_wrapper`). Umowa między czterema repozytoriami (iOS, Android, Flutter, React Native): `docs/Engineering/SDK-PLATFORMS.md` w repo `Tapll`.
+Decyzja i granice: `docs/Engineering/ADR/0004-own-crash-reporting.md` w repo `Tapll`.
 
 **Jeden fakt, z którego wynika cała reszta: crasha nie wysyła proces, który umarł.** Handler zapisuje
 raport na dysk, a SDK wysyła go przy **następnym uruchomieniu** — po minutach, po dniach, a dla kogoś,
@@ -228,25 +229,25 @@ Wszystko, co leży na dysku, jest kompletne; następny start tylko czyta i wysy�
 | Ramki | **[ANDROID]** ramki zarządzane `{n, function: "pkg.Klasa.metoda", file, line, in_app}`; `line` ≤ 0 (−1 nieznana, −2 natywna) to brak pola; `module`/`column` nie są wysyłane. `in_app`: klasa zaczyna się od `context.packageName` + `.` (albo `==`) lub od jednego z `Options.inAppPackages` | [x] |
 | Hangi | **[ANDROID]** watchdog na własnym wątku daemon: co 250 ms wrzuca tick na `Looper` głównego wątku; brak odpowiedzi ponad `Options.hangThresholdSeconds` (2 s) = epizod. Stos main threada pobierany **w chwili przekroczenia progu**, raport pisany **po zakończeniu epizodu** ze **zmierzonym** czasem (`hang_duration_ms`), nigdy z progiem. Jeden raport na epizod. Tick idzie tylko, gdy aplikacja jest na pierwszym planie (proces zamrożony przez system i odmrożony nie jest hangiem). Epizod, który nigdy się nie kończy, to ANR i raportuje go następny start | [x] |
 | ANR | **[ANDROID]** przy starcie (API 30+) `ApplicationExitInfo.REASON_ANR` nowsze niż znak wodny (`last_anr_timestamp` w `state.json`) → `kind: "anr"`, `exception.type: "ApplicationNotResponding"`, `reason` = opis systemu, `crashed_at` = czas wyjścia, stos main threada sparsowany z tekstowego śladu (`"main"` → linie `at ...`; nieczytelny ślad = brak ramek, nie zgadnięty stos). **Pierwszy start w ogóle tylko ustawia znak wodny**: ANR-y sprzed SDK mają kontekst, którego nie mamy. Kontekst raportu to kontekst **poprzedniego uruchomienia** (`last_launch_context`), bo ANR należy do procesu, który zginął, a appka mogła się zaktualizować. Bez `state` i `session_id` (nic tego wtedy nie próbkowało), bez `hang_duration_ms` (Android go nie podaje) | [x] |
-| Non-fatale | `Union.recordError(throwable)` / `recordError(type, reason)` → `kind: 'nonfatal'`, `is_fatal: false`. Osobna dotkliwość, nigdy dodawana do liczby crashy. **[ANDROID]** stos Throwable to jego własny (z `cause` jako dodatkowe wątki); dla `recordError(type, reason)` stos wołającego bez ramek SDK (`dev.useunion.Union`, `dev.useunion.internal.*`). Stos i stan urządzenia bierzemy na wątku wołającego, zapis pliku idzie na wątek pisarza; po zapisie **od razu próba wysyłki w procesie** (iOS czeka na następny start). Po `stop()` / `optOut()` ignorowane | [x] |
-| Breadcrumbs | ring buffer w pamięci (64 wpisy), zasilany z jednego lejka `push()` w pipeline — screeny, eventy auto i własne — plus `Union.leaveBreadcrumb(name)`. **Nazwy, nigdy wartości**: kontrakt nie ma pola na wartość, bo breadcrumbs nie przechodzą przez zdalny kill switch eventów | [x] |
-| Custom keys | `Union.setCrashKey(key, value)`, ≤ 8 kluczy, klucz ≤ 40, wartości ≤ 256. **Zakazane w `StrictAnonymous`** (SDK odmawia, a przy wysyłce zdejmuje `custom_keys` także z raportu zapisanego pod inną polityką); serwer odrzuca taki batch niezależnie | [x] |
+| Non-fatale | `Tapll.recordError(throwable)` / `recordError(type, reason)` → `kind: 'nonfatal'`, `is_fatal: false`. Osobna dotkliwość, nigdy dodawana do liczby crashy. **[ANDROID]** stos Throwable to jego własny (z `cause` jako dodatkowe wątki); dla `recordError(type, reason)` stos wołającego bez ramek SDK (`com.tapll.Tapll`, `com.tapll.internal.*`). Stos i stan urządzenia bierzemy na wątku wołającego, zapis pliku idzie na wątek pisarza; po zapisie **od razu próba wysyłki w procesie** (iOS czeka na następny start). Po `stop()` / `optOut()` ignorowane | [x] |
+| Breadcrumbs | ring buffer w pamięci (64 wpisy), zasilany z jednego lejka `push()` w pipeline — screeny, eventy auto i własne — plus `Tapll.leaveBreadcrumb(name)`. **Nazwy, nigdy wartości**: kontrakt nie ma pola na wartość, bo breadcrumbs nie przechodzą przez zdalny kill switch eventów | [x] |
+| Custom keys | `Tapll.setCrashKey(key, value)`, ≤ 8 kluczy, klucz ≤ 40, wartości ≤ 256. **Zakazane w `StrictAnonymous`** (SDK odmawia, a przy wysyłce zdejmuje `custom_keys` także z raportu zapisanego pod inną polityką); serwer odrzuca taki batch niezależnie | [x] |
 | Obrazy binarne | **[ANDROID]** nie dotyczy: `images: []` (pole wymagane przez kontrakt, ramki zarządzane nie mają obrazu) | — |
 | Ucięty stos | ≤ 128 ramek na wątek (zostają najbardziej wewnętrzne) i **obowiązkowe** `frames_truncated` na każdym wątku. Ucięty dump nie może czytać się jak krótki stos | [x] |
 | Stan urządzenia | **[ANDROID]** próbkowany **w chwili raportu** (w handlerze), nie wcześniej: `orientation`, pamięć (`ActivityManager.MemoryInfo`), dysk (`StatFs`), bateria (sticky `ACTION_BATTERY_CHANGED`), `low_power_mode` (`PowerManager.isPowerSaveMode`), `in_foreground` (z `ProcessLifecycleOwner`), `uptime_ms` (od startu procesu), `jailbroken` = heurystyka roota (`test-keys` w `Build.TAGS` lub ścieżka `su`; znane fałszywe trafienia na własnych ROM-ach i emulatorach, znane pominięcia przy Magisk Hide — to próbka, nie wyrok). Każde pole opcjonalne, brak odpowiedzi zostaje brakiem, nigdy zerem | [x] |
-| `build_id` | **[ANDROID]** `assets/union-build-id.txt` (zapisuje wtyczka Gradle), tylko gdy pasuje do `^[0-9a-f-]{7,64}$`; brak pliku = pole nieobecne. Klucz łączący raport z `mapping.txt` | [x] |
+| `build_id` | **[ANDROID]** `assets/tapll-build-id.txt` (zapisuje wtyczka Gradle), tylko gdy pasuje do `^[0-9a-f-]{7,64}$`; brak pliku = pole nieobecne. Klucz łączący raport z `mapping.txt` | [x] |
 | Sesja crasha | `session_id` żywej sesji (pipeline podaje go reporterowi przy każdej zmianie); `attach` przejmuje kontynuowaną sesję | [x] |
 | Wysyłka | `POST /v1/crash`, **gzip wymagany** (`GZIPOutputStream`, stały `Content-Length`, nigdy chunked). Kasujemy raport wyłącznie po 2xx albo po trwałym odrzuceniu (400/413/422); 5xx i błąd sieci **zostawiają plik**; po jednym raporcie na żądanie, najstarsze pierwsze, jedna wysyłka naraz (mutex) | [x] |
 | Limity paczki | ≤ 8 raportów, ≤ 1 MB po gzipie i ≤ 8 MB po rozpakowaniu. **[ANDROID]** SDK wysyła po jednym raporcie na żądanie, więc limity nie zależą od liczby plików | [x] |
 | `503` | osobne od 5xx z reszty świata: „nie udało się odłożyć tego raportu, ponów” — plik **zostaje** | [x] |
 | `401`/`403` | zatrzymują wysyłkę na ten launch, pliki zostają | [x] |
 | Kontrakt v2 | paczka niesie `contract_version: 2`, a **każdy** raport `platform: "android"` (zgodne z `context.os_name`). **[ANDROID]** nie ma rekordów 0.3.x do konwersji: SDK od początku mówi v2 | [x] |
-| Most wrapperów | **[ANDROID]** dokładnie dwa wywołania na `Union.Wrapper` (`@RestrictTo(LIBRARY_GROUP)`, reguły ProGuard je zachowują), bez obietnicy stabilności poza `SDK-PLATFORMS.md`. `setWrapper(name, version)` — przed `configure`: `device.sdk_wrapper = "<name>/<version>"` i dopisek do `User-Agent` (eventy **i** crashe); po `configure` albo dla nazwy/wersji pustej, ze spacją, `/`, znakiem spoza ASCII, albo gdy całość > 32 znaki — **ignorowane z logiem**. `recordManagedError(type, reason, frames: List<ManagedFrame>, fatal, thread = "main")` — `ManagedFrame(function, module?, file?, line?, column?, inApp)`; `n` z kolejności listy, ≤ 128, ucięcie → `frames_truncated`. `fatal = false` → `nonfatal`, ta sama ścieżka co `recordError`. `fatal = true` → raport `fatal` **zapisany synchronicznie** i wysłany przy następnym starcie; pusty `function` → `<anonymous>`, `line`/`column` ≤ 0 → brak, pusty `type` → `Error`. Raport zarządzany nie ma obrazów | [x] |
+| Most wrapperów | **[ANDROID]** dokładnie dwa wywołania na `Tapll.Wrapper` (`@RestrictTo(LIBRARY_GROUP)`, reguły ProGuard je zachowują), bez obietnicy stabilności poza `SDK-PLATFORMS.md`. `setWrapper(name, version)` — przed `configure`: `device.sdk_wrapper = "<name>/<version>"` i dopisek do `User-Agent` (eventy **i** crashe); po `configure` albo dla nazwy/wersji pustej, ze spacją, `/`, znakiem spoza ASCII, albo gdy całość > 32 znaki — **ignorowane z logiem**. `recordManagedError(type, reason, frames: List<ManagedFrame>, fatal, thread = "main")` — `ManagedFrame(function, module?, file?, line?, column?, inApp)`; `n` z kolejności listy, ≤ 128, ucięcie → `frames_truncated`. `fatal = false` → `nonfatal`, ta sama ścieżka co `recordError`. `fatal = true` → raport `fatal` **zapisany synchronicznie** i wysłany przy następnym starcie; pusty `function` → `<anonymous>`, `line`/`column` ≤ 0 → brak, pusty `type` → `Error`. Raport zarządzany nie ma obrazów | [x] |
 | Retencja lokalna | `Options.maxStoredCrashReports` (16), najstarsze wypadają pierwsze | [x] |
 | `optOut()` | kasuje też katalog crashów i zatrzymuje handler. **[ANDROID]** zapisany opt-out jest honorowany **także po restarcie**: `Client` nie instaluje handlera ani watchdoga, gdy `opt_out` jest ustawione; `optIn()` uzbraja je z powrotem. (iOS instaluje handlery przy każdym `configure`, także dla użytkownika po opt-oucie) | [x] |
 | Domyślnie | **włączone** (`Options.crashReporting = true`), po obu stronach (serwerowa bramka `crash_reporting_enabled`). Wyłączenie po stronie projektu **nie** zatrzymuje uploadu — zamienia go w zapisaną odmowę (`collection_disabled`). `crashReporting = false` nie instaluje niczego: ani handlera, ani watchdoga, ani katalogu | [x] |
 | Weryfikacja end-to-end | **[ANDROID]** brak odpowiednika `crash-e2e.sh`: handler JVM nie wymaga zabicia procesu, żeby go przetestować — `CrashTests` wywołuje zainstalowany handler wprost i sprawdza plik, łańcuch do poprzedniego handlera i schemat. Zabicie procesu na urządzeniu to krok ręczny przed wydaniem (przycisk `throw` w aplikacji, restart, panel) | [~] |
-| Symbolikacja | **nie w SDK.** Offsety/nazwy to tożsamość, mapowanie to wyświetlanie. **[ANDROID]** tożsamość to **zaciemnione** `function:line`; wtyczka Gradle `dev.useunion.union` wysyła `mapping.txt` po `minify<Variant>WithR8` (`POST /v1/mappings`, klucz serwerowy `UNION_SERVER_KEY`, gzip, nagłówki `x-union-key`, `x-union-build-id`, `x-union-app-version`, `x-union-app-build`); brak klucza = ostrzeżenie i pominięcie, **nigdy** błąd builda; klucz klienta `av_…` jest odrzucany. Panel odtwarza nazwy wyłącznie do wyświetlania i **nigdy nie przegrupowuje** historii. Klucz serwerowy nie wolno trafić do aplikacji | [x] |
+| Symbolikacja | **nie w SDK.** Offsety/nazwy to tożsamość, mapowanie to wyświetlanie. **[ANDROID]** tożsamość to **zaciemnione** `function:line`; wtyczka Gradle `com.tapll` wysyła `mapping.txt` po `minify<Variant>WithR8` (`POST /v1/mappings`, klucz serwerowy `TAPLL_SERVER_KEY`, gzip, nagłówki `x-tapll-key`, `x-tapll-build-id`, `x-tapll-app-version`, `x-tapll-app-build`); brak klucza = ostrzeżenie i pominięcie, **nigdy** błąd builda; klucz klienta `av_…` jest odrzucany. Panel odtwarza nazwy wyłącznie do wyświetlania i **nigdy nie przegrupowuje** historii. Klucz serwerowy nie wolno trafić do aplikacji | [x] |
 
 Reguły, których nie łamiemy:
 - **Trzy zegary są rozdzielne.** `crashed_at` (atrybucja dnia), `sent_at` (opóźnienie uploadu),
@@ -263,14 +264,14 @@ Reguły, których nie łamiemy:
 
 | Integracja | Co robi SDK | Stan |
 |---|---|---|
-| Compose | **[ANDROID]** `TrackScreen("Name", feature = null)` (moduł `union-compose`) — jeden `$screen_view` na **wejście do kompozycji** (`LaunchedEffect(name, feature)`): rekompozycja nie liczy się, zmiana nazwy i wyjście/wejście tak | [x] |
+| Compose | **[ANDROID]** `TrackScreen("Name", feature = null)` (moduł `tapll-compose`) — jeden `$screen_view` na **wejście do kompozycji** (`LaunchedEffect(name, feature)`): rekompozycja nie liczy się, zmiana nazwy i wyjście/wejście tak | [x] |
 | Aktywności | **[ANDROID]** `Options.automaticScreenTracking` — `ActivityLifecycleCallbacks.onResume`, prosta nazwa klasy; rotacja (ta sama klasa odtworzona po `isChangingConfigurations`) nie liczy się | [x] |
 | Deep linki | `handleDeepLink(Uri)` / `handleDeepLink(Intent)` z `onCreate` / `onNewIntent`; bez automatycznego przechwytywania | [x] |
 | Środowisko | **[ANDROID]** auto-detekcja: `FLAG_DEBUGGABLE` → `development`, inaczej `production`; `testflight` (tor testowy Play) wyłącznie z `Options.environment`, bo Play nie mówi aplikacji, na jakim torze jest | [x] |
-| Zakupy (Play Billing) | **[ANDROID]** aplikacja ustawia `BillingFlowParams.ProductDetailsParams`… `.setObfuscatedAccountId(Union.installId)` przy zakupie — to jedyny styk. SDK daje wartość (`null` przed `configure` i w `StrictAnonymous`; nie przeżywa reinstalacji) i snippet w README; nie importuje biblioteki Billing i nie owija zakupu. Zakupów sprzed ustawienia nie da się połączyć wstecz. Id to identyfikator urządzenia: aplikacja deklaruje go w Data safety. Odbiorca po stronie Union: patrz `SDK-PLATFORMS.md`; ten SDK niczego o zakupach nie wysyła | [x] |
-| RevenueCat | **nic w hot pathu.** Revenue wchodzi webhookiem RC → `apps/ingest`. Dwa styki po stronie aplikacji: atrybut subskrybenta `union_install_id` = `Union.installId` (pierwsza ścieżka wiązania; **[ANDROID]** to samo wywołanie, `Purchases.sharedInstance.setAttributes(mapOf("union_install_id" to Union.installId))`) i `Union.identify(userId:)` tym samym id co RC `app_user_id` (druga). RC jest właścicielem liczb wyłącznie w projekcie **bez** ASSN | [x] |
-| Survicate / NPS | **prawie nic, ale dwa styki.** Odpowiedzi wchodzą webhookiem Survicate → `apps/ingest`; SDK nie czyta ankiet i nie wysyła odpowiedzi. Styk pierwszy: aplikacja ustawia `SurvicateSdk.shared.setUserTrait(UserTrait(withName: "union_install_id", value: <install_id>))`, żeby odpowiedź trafiła na profil osoby — bez tego Union próbuje dopasować po `user_id`, a w ostatniej kolejności pyta Data Export API. Styk drugi: eventy z sekcji 1a. Treści odpowiedzi Union nie przyjmuje w żadnej formie | [ ] |
-| Flutter / React Native | cienkie wrappery nad tym SDK (`union_analytics`, `@useunion/react-native`): nic nie wysyłają same, tylko przekazują wywołania; deklarują się przez `Union.Wrapper.setWrapper` (sekcja 4a). Aplikacja używa wrappera, nie tego mostu | [x] |
+| Zakupy (Play Billing) | **[ANDROID]** aplikacja ustawia `BillingFlowParams.ProductDetailsParams`… `.setObfuscatedAccountId(Tapll.installId)` przy zakupie — to jedyny styk. SDK daje wartość (`null` przed `configure` i w `StrictAnonymous`; nie przeżywa reinstalacji) i snippet w README; nie importuje biblioteki Billing i nie owija zakupu. Zakupów sprzed ustawienia nie da się połączyć wstecz. Id to identyfikator urządzenia: aplikacja deklaruje go w Data safety. Odbiorca po stronie Tapll: patrz `SDK-PLATFORMS.md`; ten SDK niczego o zakupach nie wysyła | [x] |
+| RevenueCat | **nic w hot pathu.** Revenue wchodzi webhookiem RC → `apps/ingest`. Dwa styki po stronie aplikacji: atrybut subskrybenta `tapll_install_id` = `Tapll.installId` (pierwsza ścieżka wiązania; **[ANDROID]** to samo wywołanie, `Purchases.sharedInstance.setAttributes(mapOf("tapll_install_id" to Tapll.installId))`) i `Tapll.identify(userId:)` tym samym id co RC `app_user_id` (druga). RC jest właścicielem liczb wyłącznie w projekcie **bez** ASSN | [x] |
+| Survicate / NPS | **prawie nic, ale dwa styki.** Odpowiedzi wchodzą webhookiem Survicate → `apps/ingest`; SDK nie czyta ankiet i nie wysyła odpowiedzi. Styk pierwszy: aplikacja ustawia `SurvicateSdk.shared.setUserTrait(UserTrait(withName: "tapll_install_id", value: <install_id>))`, żeby odpowiedź trafiła na profil osoby — bez tego Tapll próbuje dopasować po `user_id`, a w ostatniej kolejności pyta Data Export API. Styk drugi: eventy z sekcji 1a. Treści odpowiedzi Tapll nie przyjmuje w żadnej formie | [ ] |
+| Flutter / React Native | cienkie wrappery nad tym SDK (`tapll_analytics`, `@tapll/react-native`): nic nie wysyłają same, tylko przekazują wywołania; deklarują się przez `Tapll.Wrapper.setWrapper` (sekcja 4a). Aplikacja używa wrappera, nie tego mostu | [x] |
 | Push / notyfikacje | poza MVP | [ ] |
 | Crash reporting | **własne, zaimplementowane** — patrz sekcja 4a. Kontrakt to `crash-batch.v2.json`, nie `EventBatch` | [x] |
 | Feature flags | poza MVP | — |
@@ -281,7 +282,7 @@ Nowa integracja przechodzi ten sam próg: wiersz w tabeli + odpowiedź na pytani
 
 - [ ] `./gradlew build test` przechodzi (**[ANDROID]** testy JVM + Robolectric 4.17 na SDK 34; wtyczka Gradle jako included build; `sample` się kompiluje, także `assembleRelease` z R8)
 - [ ] testy zgodności ze schematem walidują każdą zakodowaną paczkę względem `event-batch.v1.json` (eventy) i `crash-batch.v2.json` (crashe) — **[ANDROID]** walidatorem `com.networknt:json-schema-validator`, nie własnym minimalnym
-- [ ] fixtures schematów (`union/src/test/resources/`) odświeżone, jeśli kontrakt w repo `Union` się zmienił (ostatnio: `device.sdk_wrapper` i crash v2)
+- [ ] fixtures schematów (`tapll/src/test/resources/`) odświeżone, jeśli kontrakt w repo `Tapll` się zmienił (ostatnio: `device.sdk_wrapper` i crash v2)
 - [ ] `README.md` zgadza się z zachowaniem (README to publiczna obietnica)
 - [ ] wiersz w tej checkliście dopisany/zaktualizowany, stan `[x]/[~]/[ ]` prawdziwy
 - [ ] stringi user-facing i logi po angielsku

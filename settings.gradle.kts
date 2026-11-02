@@ -1,7 +1,7 @@
 pluginManagement {
-    // The Gradle plugin is an included build so the sample can apply `dev.useunion.union` exactly
+    // The Gradle plugin is an included build so the sample can apply `com.tapll` exactly
     // as a customer would, without publishing anything first.
-    includeBuild("union-gradle-plugin")
+    includeBuild("tapll-gradle-plugin")
     repositories {
         google()
         mavenCentral()
@@ -17,6 +17,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "union-android"
+rootProject.name = "tapll-android"
 
-include(":union", ":union-compose", ":sample")
+include(":tapll", ":tapll-compose", ":sample")

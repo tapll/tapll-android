@@ -3,17 +3,17 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     // Applied exactly as a customer would; the included build supplies it.
-    id("dev.useunion.union")
+    id("com.tapll")
 }
 
 kotlin { jvmToolchain(17) }
 
 android {
-    namespace = "dev.useunion.sample"
+    namespace = "com.tapll.sample"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "dev.useunion.sample"
+        applicationId = "com.tapll.sample"
         minSdk = 24
         targetSdk = 35
         versionCode = 1
@@ -36,14 +36,14 @@ android {
 }
 
 dependencies {
-    implementation(project(":union"))
-    implementation(project(":union-compose"))
+    implementation(project(":tapll"))
+    implementation(project(":tapll-compose"))
     implementation(libs.compose.runtime)
 }
 
-// The Union Gradle plugin: both values below are the defaults, spelled out so the sample documents them.
+// The Tapll Gradle plugin: both values below are the defaults, spelled out so the sample documents them.
 // The server key (sk_...) belongs to CI; a missing key skips the mapping upload with a warning.
-union {
-    endpoint = providers.gradleProperty("union.endpoint").getOrElse("https://in.useunion.dev/v1/mappings")
-    serverKey = providers.environmentVariable("UNION_SERVER_KEY")
+tapll {
+    endpoint = providers.gradleProperty("tapll.endpoint").getOrElse("https://in.tapll.com/v1/mappings")
+    serverKey = providers.environmentVariable("TAPLL_SERVER_KEY")
 }
